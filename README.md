@@ -3,5 +3,7 @@ Monitors and logs to a database antenna systems using a [Raspberry pi 3B+](https
 
 ## installation
 sudo apt-get install mariadb-server
+
 sudo pip install pi-plates
+
 sudo pip install MySQL-python
