@@ -7,3 +7,5 @@ sudo apt-get install mariadb-server
 sudo pip install pi-plates
 
 sudo pip install MySQL-python
+
+sudo apt-get install libmariadbclient-dev
