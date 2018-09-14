@@ -7,6 +7,7 @@ import mysql.connector as mariadb
 
 from time import sleep
 
+#TODO kj4ctd Make sure to change these for production
 mariadb_connection = mariadb.connect(user='pi', password='wmiler', database='w4nykMonitor')
 cursor = mariadb_connection.cursor()
 
@@ -76,12 +77,18 @@ def print_vdc():
   val=DAQC.getADC(0,8)
   print("Power: {}vDC".format(val))
 
+#TODO kj4ctd Only update that column in the table
+  query = """INSERT INTO `analogInput` (`id`, `unix_time`, `analog0`, `analog1`, `analog2`, `analog3`, `analog4`, `analog5`, `analog6`, `analog7`, `analog8`) VALUES (NULL, CURRENT_TIMESTAMP, '0.660', '0.03', '0.602', '0.042', '0.648', '0.034', '0.664', '0.040', '4.772')"""
+
 def print_chan(c, calfac):
   val = DAQC.getADC(0,c)
   val = val - calfac
   if val < 0:
     val = 0.0
   print("Analog In {}: {}vDC".format(c, val))
+
+#TODO kj4ctd Base this on c and only update that column in the table
+  query = """INSERT INTO `analogInput` (`id`, `unix_time`, `analog0`, `analog1`, `analog2`, `analog3`, `analog4`, `analog5`, `analog6`, `analog7`, `analog8`) VALUES (NULL, CURRENT_TIMESTAMP, '0.660', '0.03', '0.602', '0.042', '0.648', '0.034', '0.664', '0.040', '4.772')"""
 
 while True:
   clr_all()
