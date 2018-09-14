@@ -4,8 +4,9 @@ Monitors and logs to a database antenna systems using a [Raspberry pi 3B+](https
 ## installation
 sudo apt-get install mariadb-server
 
+sudo apt-get install libmariadbclient-dev
+
 sudo pip install pi-plates
 
 sudo pip install MySQL-python
 
-sudo apt-get install libmariadbclient-dev
