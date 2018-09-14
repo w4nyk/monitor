@@ -8,5 +8,5 @@ sudo apt-get install libmariadbclient-dev
 
 sudo pip install pi-plates
 
-sudo pip install MySQL-python
+pip install mysql-connector-python
 
