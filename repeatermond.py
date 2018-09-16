@@ -5,37 +5,34 @@ import piplates.DAQCplate as DAQC
 import time
 import math
 import mysql.connector as mariadb
-
+import RPi.GPIO as GPIO
 from time import sleep
 
+# Interrupt setup
+# NOTE: Not safe to run interupts with callbacks due to MySQL conflicts
+GPIO.setup(22, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.add_event_detect(22, GPIO.RISING, bouncetime=50)
+DAQC.enableDINint(0,0,'r')
+DAQC.intEnable(0)
+
 # Globals
-a = 0.0
-b = 0.0
-c = 0.0
-d = 0.0
-e = 0.0
-f = 0.0
-g = 0.0
-h = 0.0
-i = 0.0
-
-analogQ = [a,b,c,d,e,f,g,h,i]
-
-# ANSI colors
-#class bcolors:
-#    HEADER = '\033[95m'
-#    OKBLUE = '\033[94m'
-#    OKGREEN = '\033[92m'
-#    WARNING = '\033[93m'
-#    FAIL = '\033[91m'
-#    ENDC = '\033[0m'
-#    BOLD = '\033[1m'
-#    UNDERLINE = '\033[4m'
-
-
 #TODO kj4ctd Make sure to change these for production
 mariadb_connection = mariadb.connect(user='pi', password='wmiler', database='w4nykMonitor')
 cursor = mariadb_connection.cursor()
+
+def triggerINT():
+  DAQC.setDOUTbit(0,0)
+  DAQC.getINTflags(0)
+  print("\033[94m _-*xmit triggered!*-_ \033[0m")
+  vswr(450)
+  sleep(0.05)
+  vswr(300)
+  sleep(0.05)
+  vswr(200)
+  sleep(0.05)
+  vswr(100)
+  sleep(0.05)
+  DAQC.clrDOUTbit(0,0)
 
 def vswr(ant):
   if ant == 450:
@@ -62,6 +59,9 @@ def vswr(ant):
   if y <= 0:
     y = 0.1
 
+  if x <= 0:
+    x = 0.1
+
   swr=round(x/y, 3)
   if swr > 3.0:
     print("Ant Height: {} SWR:  \033[91m {} \033[0m".format(ant,swr))
@@ -76,15 +76,15 @@ def vswr(ant):
     print("\033[91m Error swr db \033[0m".format(err))
 
 def blink_red():
-  DAQC.setLED(0,1)
-  sleep(0.05)
-  DAQC.clrLED(0,1)
-  sleep(0.05)
-
-def blink_green():
   DAQC.setLED(0,0)
   sleep(0.05)
   DAQC.clrLED(0,0)
+  sleep(0.05)
+
+def blink_green():
+  DAQC.setLED(0,1)
+  sleep(0.05)
+  DAQC.clrLED(0,1)
   sleep(0.05)
 
 def blink_dio(c):
@@ -153,6 +153,7 @@ def print_vdc():
     mariadb_connection.rollback()
     print("\033[91m Error vdc db \033[0m".format(err))
 
+# TODO kj4ctd Pull calibrartion factor (calfac) from database instead of directly
 def print_chan(c, calfac):
   val = DAQC.getADC(0,c)
   val = val - calfac
@@ -189,53 +190,43 @@ def print_chan(c, calfac):
 
 # TODO kj4ctd Main loop, cleanup and make it production quality
 # Do a loop every 10 mins or so
-while True:
-  clr_all()
-  print(time.ctime())
-  blink_red()
-  blink_red()
-  print_vdc()
-  vswr(450)
-  sleep(0.5)
-  vswr(300)
-  sleep(0.5)
-  vswr(200)
-  sleep(0.5)
-  vswr(100)
-  sleep(0.5)
-  print_chan(0,2.39)
-  print_chan(1,0.052)
-  print_chan(2,2.44)
-  print_chan(3,2.96)
-  print_chan(4,2.40)
-  print_chan(5,2.46)
-  print_chan(6,3.11)
-  print_chan(7,3.06)
-  print("INT flags: {}".format(DAQC.getINTflags(0)))
-  blink_green()
+try:
+  while True:
+    if GPIO.event_detected(22):
+      triggerINT()
+    clr_all()
+    print(time.ctime())
+    # Two red flashes denotes start of cycle
+    blink_red()
+    blink_red()
+    print_vdc()
+    print("INT flags: {}".format(DAQC.getINTflags(0)))
+    print_chan(0,2.39)
+    print_chan(1,0.052)
+    print_chan(2,2.44)
+    print_chan(3,2.96)
+    print_chan(4,2.40)
+    print_chan(5,2.46)
+    print_chan(6,3.11)
+    print_chan(7,3.06)
 
-  blink_red()
-  print_din(0)
-  blink_dio(0)
-  print_din(1)
-  blink_dio(1)
-  print_din(2)
-  blink_dio(2)
-  print_din(3)
-  blink_dio(3)
-  print_din(4)
-  blink_dio(4)
-  print_din(5)
-  blink_dio(5)
-  print_din(6)
-  blink_dio(6)
-  print_din(7)
+    print_din(0)
+    print_din(1)
+    print_din(2)
+    print_din(3)
+    print_din(4)
+    print_din(5)
+    print_din(6)
+    print_din(7)
 
-  blink_green()
-  blink_green()
-  clr_all()
-  sleep(600)
-
-
-cursor.close()
-mariadb_connection.close()
+    clr_all()
+    sleep(10)
+    # End of cycle
+    blink_red()
+    blink_red()
+# sleep for 10 minutes
+#    sleep(600)
+except KeyboardInterrupt:
+  cursor.close()
+  mariadb_connection.close()
+  GPIO.cleanup()
