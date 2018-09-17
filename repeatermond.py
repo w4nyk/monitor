@@ -7,6 +7,7 @@ import math
 import mysql.connector as mariadb
 import RPi.GPIO as GPIO
 from time import sleep
+from os import system
 
 # Interrupt setup
 # NOTE: Not safe to run interupts with callbacks due to MySQL conflicts
@@ -19,6 +20,13 @@ DAQC.intEnable(0)
 #TODO kj4ctd Make sure to change these for production
 mariadb_connection = mariadb.connect(user='pi', password='wmiler', database='w4nykMonitor')
 cursor = mariadb_connection.cursor()
+
+def createDB():
+  query = """mysql -u pi -pwmiler --host localhost < repeatermond.sql"""
+  try:
+    system(query)
+  except:
+    print("\033[91m Error creating db \033[0m".format(err))
 
 def triggerINT():
   DAQC.setDOUTbit(0,0)
@@ -110,21 +118,21 @@ def print_din(c):
 
 #TODO kj4ctd Base this on c and only update that column in the table. Python is messy, switch would've been better
   if c == 0:
-    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '{}', '0', '0', '0', '0', '0', '0', '0')"""
+    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '{}', '1', '1', '1', '1', '1', '1', '1')"""
   elif c == 1:
-    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '0', '{}', '0', '0', '0', '0', '0', '0')"""
+    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '1', '{}', '1', '1', '1', '1', '1', '1')"""
   elif c == 2:
-    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '0', '0', '{}', '0', '0', '0', '0', '0')"""
+    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '1', '1', '{}', '1', '1', '1', '1', '1')"""
   elif c == 3:
-    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '0', '0', '0', '{}', '0', '0', '0', '0')"""
+    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '1', '1', '1', '{}', '1', '1', '1', '1')"""
   elif c == 4:
-    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '0', '0', '0', '0', '{}', '0', '0', '0')"""
+    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '1', '1', '1', '1', '{}', '1', '1', '1')"""
   elif c == 5:
-    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '0', '0', '0', '0', '0', '{}', '0', '0')"""
+    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '1', '1', '1', '1', '1', '{}', '1', '1')"""
   elif c == 6:
-    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '0', '0', '0', '0', '0', '0', '{}', '0')"""
+    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '1', '1', '1', '1', '1', '1', '{}', '1')"""
   else:
-    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '0', '0', '0', '0', '0', '0', '0', '{}')"""
+    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '1', '1', '1', '1', '1', '1', '1', '{}')"""
 
   try:
     cursor.execute(query.format(val))
@@ -176,10 +184,8 @@ def print_chan(c, calfac):
     query = """INSERT INTO `analogInput` (`id`, `unix_time`, `analog0`, `analog1`, `analog2`, `analog3`, `analog4`, `analog5`, `analog6`, `analog7`, `analog8`) VALUES (NULL, CURRENT_TIMESTAMP, '0.0', '0.0', '0.0', '0.0', '0.0', '{}', '0.0', '0.0', '0.0')"""
   elif c == 6:
     query = """INSERT INTO `analogInput` (`id`, `unix_time`, `analog0`, `analog1`, `analog2`, `analog3`, `analog4`, `analog5`, `analog6`, `analog7`, `analog8`) VALUES (NULL, CURRENT_TIMESTAMP, '0.0', '0.0', '0.0', '0.0', '0.0', '0.0', '{}', '0.0', '0.0')"""
-  elif c == 7:
-    query = """INSERT INTO `analogInput` (`id`, `unix_time`, `analog0`, `analog1`, `analog2`, `analog3`, `analog4`, `analog5`, `analog6`, `analog7`, `analog8`) VALUES (NULL, CURRENT_TIMESTAMP, '0.0', '0.0', '0.0', '0.0', '0.0', '0.0', '0.0', '{}', '0.0')"""
   else:
-    query = """ """
+    query = """INSERT INTO `analogInput` (`id`, `unix_time`, `analog0`, `analog1`, `analog2`, `analog3`, `analog4`, `analog5`, `analog6`, `analog7`, `analog8`) VALUES (NULL, CURRENT_TIMESTAMP, '0.0', '0.0', '0.0', '0.0', '0.0', '0.0', '0.0', '{}', '0.0')"""
 
   try:
     cursor.execute(query.format(val))
@@ -191,6 +197,14 @@ def print_chan(c, calfac):
 # TODO kj4ctd Main loop, cleanup and make it production quality
 # Do a loop every 10 mins or so
 try:
+  cursor.execute("SHOW TABLES LIKE 'swr'")
+  result = cursor.fetchone()
+  if result:
+    print("DB: table exists")
+  else:
+    print("DB: no table, creating database")
+    createDB()
+
   while True:
     if GPIO.event_detected(22):
       triggerINT()
@@ -219,13 +233,13 @@ try:
     print_din(6)
     print_din(7)
 
-    clr_all()
-    sleep(10)
+
     # End of cycle
+    clr_all()
     blink_red()
     blink_red()
-# sleep for 10 minutes
-#    sleep(600)
+# sleep for 30 minutes
+    sleep(900)
 except KeyboardInterrupt:
   cursor.close()
   mariadb_connection.close()
