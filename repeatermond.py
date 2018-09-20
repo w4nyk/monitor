@@ -18,7 +18,12 @@ DAQC.intEnable(0)
 
 # Globals
 #TODO kj4ctd Make sure to change these for production
-mariadb_connection = mariadb.connect(user='pi', password='wmiler', database='w4nykMonitor')
+USER = 'pi'
+PASSWD = 'wmiler'
+DBNAME = 'w4nykMonitor'
+ants = [450, 300, 200, 100]
+
+mariadb_connection = mariadb.connect(user=USER, password=PASSWD, database=DBNAME)
 cursor = mariadb_connection.cursor()
 
 def createDB():
@@ -32,56 +37,64 @@ def triggerINT():
   DAQC.setDOUTbit(0,0)
   DAQC.getINTflags(0)
   print("\033[94m _-*xmit triggered!*-_ \033[0m")
-  vswr(450)
-  sleep(0.05)
-  vswr(300)
-  sleep(0.05)
-  vswr(200)
-  sleep(0.05)
-  vswr(100)
-  sleep(0.05)
+  vswr()
   DAQC.clrDOUTbit(0,0)
 
-def vswr(ant):
-  if ant == 450:
-    f=abs(DAQC.getADC(0,0))
-    r=abs(DAQC.getADC(0,1))
-    query = """INSERT INTO `swr` (`id`, `unix_time`, `fourfifty`, `threeHundred`, `twoHundred`, `oneHundred`) VALUES (NULL, CURRENT_TIMESTAMP, {}, NULL, NULL, NULL)"""
-  elif ant == 300:
-    f=abs(DAQC.getADC(0,2))
-    r=abs(DAQC.getADC(0,3))
-    query = """INSERT INTO `swr` (`id`, `unix_time`, `fourfifty`, `threeHundred`, `twoHundred`, `oneHundred`) VALUES (NULL, CURRENT_TIMESTAMP, NULL, {}, NULL, NULL)"""
-  elif ant == 200:
-    f=abs(DAQC.getADC(0,4))
-    r=abs(DAQC.getADC(0,5))
-    query = """INSERT INTO `swr` (`id`, `unix_time`, `fourfifty`, `threeHundred`, `twoHundred`, `oneHundred`) VALUES (NULL, CURRENT_TIMESTAMP, NULL, NULL, {}, NULL)"""
-  elif ant == 100:
-    f=abs(DAQC.getADC(0,6))
-    r=abs(DAQC.getADC(0,7))
-    query = """INSERT INTO `swr` (`id`, `unix_time`, `fourfifty`, `threeHundred`, `twoHundred`, `oneHundred`) VALUES (NULL, CURRENT_TIMESTAMP, NULL, NULL, NULL, {})"""
+def vswr():
+  for ant in ants:
+    if ant == 450:
+      f=abs(DAQC.getADC(0,0))
+      r=abs(DAQC.getADC(0,1))
+      x=abs(1 + math.sqrt(safe_div(r,f)))
+      y=abs(1 - math.sqrt(safe_div(r,f)))
+      swr_450=round(safe_div(x,y), 3)
+      if swr_450 > 3.0:
+        print("Ant Height: {} SWR:  \033[91m {} \033[0m".format(ant,swr_450))
+      else:
+        print("Ant Height: {} SWR:  \033[92m {} \033[0m".format(ant,swr_450))
+    elif ant == 300:
+      f=abs(DAQC.getADC(0,2))
+      r=abs(DAQC.getADC(0,3))
+      x=abs(1 + math.sqrt(safe_div(r,f)))
+      y=abs(1 - math.sqrt(safe_div(r,f)))
+      swr_300=round(safe_div(x,y), 3)
+      if swr_300 > 3.0:
+        print("Ant Height: {} SWR:  \033[91m {} \033[0m".format(ant,swr_300))
+      else:
+        print("Ant Height: {} SWR:  \033[92m {} \033[0m".format(ant,swr_300))
+    elif ant == 200:
+      f=abs(DAQC.getADC(0,4))
+      r=abs(DAQC.getADC(0,5))
+      x=abs(1 + math.sqrt(safe_div(r,f)))
+      y=abs(1 - math.sqrt(safe_div(r,f)))
+      swr_200=round(safe_div(x,y), 3)
+      if swr_200 > 3.0:
+        print("Ant Height: {} SWR:  \033[91m {} \033[0m".format(ant,swr_200))
+      else:
+        print("Ant Height: {} SWR:  \033[92m {} \033[0m".format(ant,swr_200))
+    elif ant == 100:
+      f=abs(DAQC.getADC(0,6))
+      r=abs(DAQC.getADC(0,7))
+      x=abs(1 + math.sqrt(safe_div(r,f)))
+      y=abs(1 - math.sqrt(safe_div(r,f)))
+      swr_100=round(safe_div(x,y), 3)
+      if swr_100 > 3.0:
+        print("Ant Height: {} SWR:  \033[91m {} \033[0m".format(ant,swr_100))
+      else:
+        print("Ant Height: {} SWR:  \033[92m {} \033[0m".format(ant,swr_100))
 
-  x=abs(1 + math.sqrt(r/f))
-  y=abs(1 - math.sqrt(r/f))
-
-# TODO: kj4ctd Catch divide by 0, give it something else while in testing
-  if y <= 0:
-    y = 0.1
-
-  if x <= 0:
-    x = 0.1
-
-  swr=round(x/y, 3)
-  if swr > 3.0:
-    print("Ant Height: {} SWR:  \033[91m {} \033[0m".format(ant,swr))
-  else:
-    print("Ant Height: {} SWR:  \033[92m {} \033[0m".format(ant,swr))
+  query = """INSERT INTO `swr` (`id`, `unix_time`, `fourfifty`, `threeHundred`, `twoHundred`, `oneHundred`) VALUES (NULL, CURRENT_TIMESTAMP, {}, {}, {}, {})"""
 
   try:
-    cursor.execute(query.format(swr))
+    cursor.execute(query.format(swr_450, swr_300, swr_200, swr_100))
     mariadb_connection.commit()
   except mariadb.Error as err:
     mariadb_connection.rollback()
     print("\033[91m Error swr db \033[0m".format(err))
+
+def safe_div(x,y):
+  if y==0: return 1
+  return x/y
 
 def blink_red():
   DAQC.setLED(0,0)
@@ -200,9 +213,9 @@ try:
   cursor.execute("SHOW TABLES LIKE 'swr'")
   result = cursor.fetchone()
   if result:
-    print("DB: table exists")
+    print("\033[92mDB: database and tables exist \033[0m")
   else:
-    print("DB: no table, creating database")
+    print("\033[91mDB: no tables, creating database \033[0m")
     createDB()
 
   while True:
@@ -215,14 +228,14 @@ try:
     blink_red()
     print_vdc()
     print("INT flags: {}".format(DAQC.getINTflags(0)))
-    print_chan(0,2.39)
-    print_chan(1,0.052)
-    print_chan(2,2.44)
-    print_chan(3,2.96)
-    print_chan(4,2.40)
-    print_chan(5,2.46)
-    print_chan(6,3.11)
-    print_chan(7,3.06)
+    print_chan(0,0)     # 2.39
+    print_chan(1,0.052) # 0.052
+    print_chan(2,0)     # 2.44
+    print_chan(3,0)     # 2.96
+    print_chan(4,0)     # 2.40
+    print_chan(5,0)     # 2.46
+    print_chan(6,0)     # 3.11
+    print_chan(7,0)     # 3.06
 
     print_din(0)
     print_din(1)
