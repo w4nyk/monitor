@@ -23,6 +23,7 @@ PASSWD = 'wmiler'
 DBNAME = 'w4nykMonitor'
 ANTS = [450, 300, 200, 100]
 ANALOGIO = [0, 1, 2, 3, 4, 5, 6, 7]
+DIGIN = [0, 1, 2, 3, 4, 5, 6]
 DEBUG=1
 
 mariadb_connection = mariadb.connect(user=USER, password=PASSWD, database=DBNAME)
