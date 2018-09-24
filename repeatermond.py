@@ -22,6 +22,7 @@ USER = 'pi'
 PASSWD = 'wmiler'
 DBNAME = 'w4nykMonitor'
 ANTS = [450, 300, 200, 100]
+ANALOGIO = [0, 1, 2, 3, 4, 5, 6, 7]
 DEBUG=1
 
 mariadb_connection = mariadb.connect(user=USER, password=PASSWD, database=DBNAME)
@@ -41,48 +42,28 @@ def triggerINT():
   vswr()
   DAQC.clrDOUTbit(0,0)
 
+def calc_vswr(ant,f,r):
+  f=abs(DAQC.getADC(0,f))
+  r=abs(DAQC.getADC(0,r))
+  x=abs(1 + math.sqrt(safe_div(r,f)))
+  y=abs(1 - math.sqrt(safe_div(r,f)))
+  swr=round(safe_div(x,y), 3)
+  if swr > 3.0:
+    print("Ant Height: {} SWR:  \033[91m {} \033[0m".format(ant,swr))
+  else:
+    print("Ant Height: {} SWR:  \033[92m {} \033[0m".format(ant,swr))
+  return swr
+
 def vswr():
   for ant in ANTS:
     if ant == 450:
-      f=abs(DAQC.getADC(0,0))
-      r=abs(DAQC.getADC(0,1))
-      x=abs(1 + math.sqrt(safe_div(r,f)))
-      y=abs(1 - math.sqrt(safe_div(r,f)))
-      swr_450=round(safe_div(x,y), 3)
-      if swr_450 > 3.0:
-        print("Ant Height: {} SWR:  \033[91m {} \033[0m".format(ant,swr_450))
-      else:
-        print("Ant Height: {} SWR:  \033[92m {} \033[0m".format(ant,swr_450))
+      swr_450=calc_vswr(ant,0,1)
     elif ant == 300:
-      f=abs(DAQC.getADC(0,2))
-      r=abs(DAQC.getADC(0,3))
-      x=abs(1 + math.sqrt(safe_div(r,f)))
-      y=abs(1 - math.sqrt(safe_div(r,f)))
-      swr_300=round(safe_div(x,y), 3)
-      if swr_300 > 3.0:
-        print("Ant Height: {} SWR:  \033[91m {} \033[0m".format(ant,swr_300))
-      else:
-        print("Ant Height: {} SWR:  \033[92m {} \033[0m".format(ant,swr_300))
+      swr_300=calc_vswr(ant,2,3)
     elif ant == 200:
-      f=abs(DAQC.getADC(0,4))
-      r=abs(DAQC.getADC(0,5))
-      x=abs(1 + math.sqrt(safe_div(r,f)))
-      y=abs(1 - math.sqrt(safe_div(r,f)))
-      swr_200=round(safe_div(x,y), 3)
-      if swr_200 > 3.0:
-        print("Ant Height: {} SWR:  \033[91m {} \033[0m".format(ant,swr_200))
-      else:
-        print("Ant Height: {} SWR:  \033[92m {} \033[0m".format(ant,swr_200))
+      swr_200=calc_vswr(ant,4,5)
     elif ant == 100:
-      f=abs(DAQC.getADC(0,6))
-      r=abs(DAQC.getADC(0,7))
-      x=abs(1 + math.sqrt(safe_div(r,f)))
-      y=abs(1 - math.sqrt(safe_div(r,f)))
-      swr_100=round(safe_div(x,y), 3)
-      if swr_100 > 3.0:
-        print("Ant Height: {} SWR:  \033[91m {} \033[0m".format(ant,swr_100))
-      else:
-        print("Ant Height: {} SWR:  \033[92m {} \033[0m".format(ant,swr_100))
+      swr_100=calc_vswr(ant,6,7)
 
   query = """INSERT INTO `swr` (`id`, `unix_time`, `fourfifty`, `threeHundred`, `twoHundred`, `oneHundred`) VALUES (NULL, CURRENT_TIMESTAMP, {}, {}, {}, {})"""
 
