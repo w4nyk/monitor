@@ -53,26 +53,27 @@ DROP TABLE IF EXISTS `calibration`;
 CREATE TABLE `calibration` (
   `id` int(11) NOT NULL,
   `unix_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `fiveW` decimal(10,3) NOT NULL,
-  `tenW` decimal(10,3) NOT NULL,
-  `fifteenW` decimal(10,3) NOT NULL,
-  `twentyW` decimal(10,3) NOT NULL,
-  `twentyfiveW` decimal(10,3) NOT NULL,
-  `thirtyW` decimal(10,3) NOT NULL,
-  `thirtyfiveW` decimal(10,3) NOT NULL,
-  `fortyW` decimal(10,3) NOT NULL,
-  `fortyfiveW` decimal(10,3) NOT NULL,
-  `fiftyW` decimal(10,3) NOT NULL,
-  `fiftyfiveW` decimal(10,3) NOT NULL,
-  `sixtyW` decimal(10,3) NOT NULL,
-  `sixtyfiveW` decimal(10,3) NOT NULL,
-  `seventyW` decimal(10,3) NOT NULL,
-  `seventyfiveW` decimal(10,3) NOT NULL,
-  `eightyW` decimal(10,3) NOT NULL,
-  `eightyfiveW` decimal(10,3) NOT NULL,
-  `ninetyW` decimal(10,3) NOT NULL,
-  `ninetyfiveW` decimal(10,3) NOT NULL,
-  `onehundredW` decimal(10,3) NOT NULL
+  `elementSize` int(11) NOT NULL,
+  `fiveW` float(10,3) NOT NULL,
+  `tenW` float(10,3) NOT NULL,
+  `fifteenW` float(10,3) NOT NULL,
+  `twentyW` float(10,3) NOT NULL,
+  `twentyfiveW` float(10,3) NOT NULL,
+  `thirtyW` float(10,3) NOT NULL,
+  `thirtyfiveW` float(10,3) NOT NULL,
+  `fortyW` float(10,3) NOT NULL,
+  `fortyfiveW` float(10,3) NOT NULL,
+  `fiftyW` float(10,3) NOT NULL,
+  `fiftyfiveW` float(10,3) NOT NULL,
+  `sixtyW` float(10,3) NOT NULL,
+  `sixtyfiveW` float(10,3) NOT NULL,
+  `seventyW` float(10,3) NOT NULL,
+  `seventyfiveW` float(10,3) NOT NULL,
+  `eightyW` float(10,3) NOT NULL,
+  `eightyfiveW` float(10,3) NOT NULL,
+  `ninetyW` float(10,3) NOT NULL,
+  `ninetyfiveW` float(10,3) NOT NULL,
+  `onehundredW` float(10,3) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Holds wattmeter element calibration values';
 
 -- --------------------------------------------------------
@@ -125,7 +126,8 @@ ALTER TABLE `analogInput`
 -- Indexes for table `calibration`
 --
 ALTER TABLE `calibration`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `elementSize` (`elementSize`);
 
 --
 -- Indexes for table `digInput`
