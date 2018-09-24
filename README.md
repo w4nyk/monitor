@@ -21,3 +21,8 @@ sudo apt-get install rpimonitor
 sudo /etc/init.d/rpimonitor update
 ```
 Then copy the files from **THIS** repo under config-files/rpimonitor/template/* to /etc/rpimonitor/template/
+
+After you have completed the above step, you will need to execute this command for the changes to be applied:
+``` bash
+sudo /etc/init.d/rpimonitor restart
+```
