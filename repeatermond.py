@@ -22,8 +22,8 @@ USER = 'pi'
 PASSWD = 'wmiler'
 DBNAME = 'w4nykMonitor'
 ANTS = [450, 300, 200, 100]
-ANALOGIO = [0, 1, 2, 3, 4, 5, 6, 7]
-DIGIN = [0, 1, 2, 3, 4, 5, 6]
+ANALOGIO = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+DIGIN = [0, 1, 2, 3, 4, 5, 6, 7]
 DEBUG=1
 
 mariadb_connection = mariadb.connect(user=USER, password=PASSWD, database=DBNAME)
@@ -109,6 +109,57 @@ def clr_all():
   DAQC.clrDOUTbit(0,6)
   print("\r\n")
 
+def eval_din(din):
+  if din == 0:
+    val = "\033[93m Closed \033[0m"
+  else:
+    val = "\033[92m Open \033[0m"
+  return val
+
+def db_din():
+  for din in DIGIN:
+    if din == 0:
+      din_0 = DAQC.getDINbit(0,0)
+      val = eval_din(din_0)
+      print("Din {}: {}".format(0,val))
+    elif din == 1:
+      din_1 = DAQC.getDINbit(0,1)
+      val = eval_din(din_1)
+      print("Din {}: {}".format(1,val))
+    elif din == 2:
+      din_2 = DAQC.getDINbit(0,2)
+      val = eval_din(din_2)
+      print("Din {}: {}".format(2,val))
+    elif din == 3:
+      din_3 = DAQC.getDINbit(0,3)
+      val = eval_din(din_3)
+      print("Din {}: {}".format(3,val))
+    elif din == 4:
+      din_4 = DAQC.getDINbit(0,4)
+      val = eval_din(din_4)
+      print("Din {}: {}".format(4,val))
+    elif din == 5:
+      din_5 = DAQC.getDINbit(0,5)
+      val = eval_din(din_5)
+      print("Din {}: {}".format(5,val))
+    elif din == 6:
+      din_6 = DAQC.getDINbit(0,6)
+      val = eval_din(din_6)
+      print("Din {}: {}".format(6,val))
+    elif din == 7:
+      din_7 = DAQC.getDINbit(0,7)
+      val = eval_din(din_7)
+      print("Din {}: {}".format(7,val))
+
+  query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}')"""
+
+  try:
+    cursor.execute(query.format(din_0, din_1, din_2, din_3, din_4, din_5, din_6, din_7))
+    mariadb_connection.commit()
+  except mariadb.Error as err:
+    mariadb_connection.rollback()
+    print("\033[91m Error digInput db \033[0m {}".format(err))
+
 def print_din(c):
   val = DAQC.getDINbit(0,c)
 
@@ -156,6 +207,69 @@ def print_vdc():
   except mariadb.Error as err:
     mariadb_connection.rollback()
     print("\033[91m Error vdc db \033[0m".format(err))
+
+def eval_analog(aio):
+  if aio < 0:
+    aio = 0.0
+  return aio
+
+def db_analog():
+  calfac = 0.0
+  for aio in ANALOGIO:
+    if aio == 0:
+      aio_0 = DAQC.getADC(0,0)
+      aio_0 = aio_0 - calfac
+      aio_0 = eval_analog(aio_0)
+      print("Analog In {}: {}vDC".format(aio, aio_0))
+    elif aio == 1:
+      aio_1 = DAQC.getADC(0,1)
+      aio_1 = aio_1 - calfac
+      aio_1 = eval_analog(aio_1)
+      print("Analog In {}: {}vDC".format(aio, aio_1))
+    elif aio == 2:
+      aio_2 = DAQC.getADC(0,2)
+      aio_2 = aio_2 - calfac
+      aio_2 = eval_analog(aio_2)
+      print("Analog In {}: {}vDC".format(aio, aio_2))
+    elif aio == 3:
+      aio_3 = DAQC.getADC(0,3)
+      aio_3 = aio_3 - calfac
+      aio_3 = eval_analog(aio_3)
+      print("Analog In {}: {}vDC".format(aio, aio_3))
+    elif aio == 4:
+      aio_4 = DAQC.getADC(0,4)
+      aio_4 = aio_4 - calfac
+      aio_4 = eval_analog(aio_4)
+      print("Analog In {}: {}vDC".format(aio, aio_4))
+    elif aio == 5:
+      aio_5 = DAQC.getADC(0,5)
+      aio_5 = aio_5 - calfac
+      aio_5 = eval_analog(aio_5)
+      print("Analog In {}: {}vDC".format(aio, aio_5))
+    elif aio == 6:
+      aio_6 = DAQC.getADC(0,6)
+      aio_6 = aio_6 - calfac
+      aio_6 = eval_analog(aio_6)
+      print("Analog In {}: {}vDC".format(aio, aio_6))
+    elif aio == 7:
+      aio_7 = DAQC.getADC(0,7)
+      aio_7 = aio_7 - calfac
+      aio_7 = eval_analog(aio_7)
+      print("Analog In {}: {}vDC".format(aio, aio_7))
+    elif aio == 8:
+      aio_8 = DAQC.getADC(0,8)
+      aio_8 = aio_8 - calfac
+      aio_8 = eval_analog(aio_8)
+      print("Analog In {}: {}vDC".format(aio, aio_8))
+
+  query = """INSERT INTO `analogInput` (`id`, `unix_time`, `analog0`, `analog1`, `analog2`, `analog3`, `analog4`, `analog5`, `analog6`, `analog7`, `analog8`) VALUES (NULL, CURRENT_TIMESTAMP, '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}')"""
+
+  try:
+    cursor.execute(query.format(aio_0, aio_1, aio_2, aio_3, aio_4, aio_5, aio_6, aio_7, aio_8))
+    mariadb_connection.commit()
+  except mariadb.Error as err:
+    mariadb_connection.rollback()
+    print("\033[91m Error analogInput db \033[0m".format(err))
 
 # TODO kj4ctd Pull calibrartion factor (calfac) from database instead of directly
 def print_chan(c, calfac):
@@ -209,31 +323,14 @@ try:
     # Two red flashes denotes start of cycle
     blink_red()
     blink_red()
-    print_vdc()
     print("INT flags: {}".format(DAQC.getINTflags(0)))
-    print_chan(0,0)     # 2.39
-    print_chan(1,0.052) # 0.052
-    print_chan(2,0)     # 2.44
-    print_chan(3,0)     # 2.96
-    print_chan(4,0)     # 2.40
-    print_chan(5,0)     # 2.46
-    print_chan(6,0)     # 3.11
-    print_chan(7,0)     # 3.06
-
-    print_din(0)
-    print_din(1)
-    print_din(2)
-    print_din(3)
-    print_din(4)
-    print_din(5)
-    print_din(6)
-    print_din(7)
-
+    db_analog()
+    db_din()
 
     # End of cycle
+    blink_red()
+    blink_red()
     clr_all()
-    blink_red()
-    blink_red()
     if DEBUG:
       print("\033[91mDEBUG sleep 10s\033[0m")
       sleep(10)
