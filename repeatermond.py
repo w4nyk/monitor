@@ -21,7 +21,8 @@ DAQC.intEnable(0)
 USER = 'pi'
 PASSWD = 'wmiler'
 DBNAME = 'w4nykMonitor'
-ants = [450, 300, 200, 100]
+ANTS = [450, 300, 200, 100]
+DEBUG=1
 
 mariadb_connection = mariadb.connect(user=USER, password=PASSWD, database=DBNAME)
 cursor = mariadb_connection.cursor()
@@ -41,7 +42,7 @@ def triggerINT():
   DAQC.clrDOUTbit(0,0)
 
 def vswr():
-  for ant in ants:
+  for ant in ANTS:
     if ant == 450:
       f=abs(DAQC.getADC(0,0))
       r=abs(DAQC.getADC(0,1))
@@ -251,8 +252,12 @@ try:
     clr_all()
     blink_red()
     blink_red()
+    if DEBUG:
+      print("\033[91mDEBUG sleep 10s\033[0m")
+      sleep(10)
+    else:
 # sleep for 30 minutes
-    sleep(900)
+      sleep(900)
 except KeyboardInterrupt:
   cursor.close()
   mariadb_connection.close()
