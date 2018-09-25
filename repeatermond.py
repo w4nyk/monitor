@@ -6,8 +6,20 @@ import time
 import math
 import mysql.connector as mariadb
 import RPi.GPIO as GPIO
+import ConfigParser
+import io
+
 from time import sleep
 from os import system
+
+# ./rm_config.py
+#import rm_config
+
+__author__     = 'Wyatt Miler, KJ4CTD'
+__copyright__  = 'Copyright (c) 2018 Wyatt Miler, KJ4CTD'
+__license__    = 'GNU GPLv3'
+__maintainer__ = 'Wyatt Miler, KJ4CTD'
+__email__      = 'kj4ctd@wmiler.org'
 
 # Interrupt setup
 # NOTE: Not safe to run interupts with callbacks due to MySQL conflicts
@@ -28,6 +40,65 @@ DEBUG=1
 
 mariadb_connection = mariadb.connect(user=USER, password=PASSWD, database=DBNAME)
 cursor = mariadb_connection.cursor()
+dict_cursor = mariadb_connection.cursor(dictionary=True)
+
+# TODO This needs to be broken out into its own file
+# Next two defs are for reading and writing a config file
+def rm_write_config():
+  config = ConfigParser.RawConfigParser()
+
+  if not config.read('repeatermond.cfg'):
+    print('Configuration file \033[93mrepeatermond.cfg\033[0m is not a valid configuration file! Creating defaults.')
+
+  CONFIG = {}
+  CONFIG['MYSQLD'] = {}
+  CONFIG['MONITOR'] = {}
+
+  try:
+    config.add_section('mysqld')
+    config.set('mysqld', 'USER', 'pi')
+    config.set('mysqld', 'PASSWD', 'wmiler')
+    config.set('mysqld', 'DBNAME', 'w4nykMonitor')
+
+    config.add_section('monitor')
+    config.set('monitor', 'DEBUG', '1')
+    config.set('monitor', 'ANTS', '[450, 300, 200, 100]')
+    config.set('monitor', 'DIGIN', '[0, 1, 2, 3, 4, 5, 6, 7]')
+
+    with open('repeatermond.cfg', 'wb') as configfile:
+      config.write(configfile)
+  except ConfigParser.Error, err:
+    print "Cannot parse configuration file. %s" %err
+    sys.exit('Could not parse configuration file. Exiting...')
+
+def rm_read_config():
+  config = ConfigParser.RawConfigParser()
+
+  if not config.read('repeatermond.cfg'):
+    sys.exit('Configuration file \033[93mrepeatermond.cfg\033[0m is not a valid configuration file! Exiting...')
+
+  CONFIG = {}
+  CONFIG['MYSQLD'] = {}
+  CONFIG['MONITOR'] = {}
+
+  try:
+    for section in config.sections():
+      if section == 'MYSQLD':
+        CONFIG['MYSQLD'].update({
+          'USER': config.get(section, 'USER'),
+          'PASSWD': config.get(section, 'PASSWD'),
+          'DBNAME': config.get(section, 'DBNAME')
+        })
+      elif section == 'MONITOR':
+        CONFIG['MONITOR'].update({
+          'DEBUG': config.get(section, 'DEBUG'),
+          'ANTS': config.get(section, 'ANTS'),
+          'DIGIN': config.get(section, 'DIGIN')
+        })
+  except ConfigParser.Error, err:
+    print "Cannot parse configuration file. %s" %err
+    sys.exit('Could not parse configuration file. Exiting...')
+  return CONFIG
 
 def createDB():
   query = """mysql -u pi -pwmiler --host localhost < repeatermond.sql"""
@@ -36,6 +107,18 @@ def createDB():
   except:
     print("\033[91m Error creating db \033[0m".format(err))
 
+def get_calfac(element_size):
+  query = """SELECT * FROM  `calibration` WHERE `elementSize` = {} AND `fiveW` IS NOT NULL"""
+
+  try:
+    dict_cursor.execute(query.format(element_size))
+    row = dict_cursor.fetchone()
+  except mariadb.Error as err:
+    print("\033[91m Error calfac db \033[0m".format(err))
+
+# TODO return the full calibration factors as needed or wanted, for now, factor at 5W is good enough
+  return row['fiveW']
+
 def triggerINT():
   DAQC.setDOUTbit(0,0)
   DAQC.getINTflags(0)
@@ -43,6 +126,7 @@ def triggerINT():
   vswr()
   DAQC.clrDOUTbit(0,0)
 
+# TODO Add get_calfac to calc_vswr
 def calc_vswr(ant,f,r):
   f=abs(DAQC.getADC(0,f))
   r=abs(DAQC.getADC(0,r))
@@ -214,7 +298,7 @@ def eval_analog(aio):
   return aio
 
 def db_analog():
-  calfac = 0.0
+  calfac = get_calfac(100)
   for aio in ANALOGIO:
     if aio == 0:
       aio_0 = DAQC.getADC(0,0)
@@ -260,7 +344,7 @@ def db_analog():
       aio_8 = DAQC.getADC(0,8)
       aio_8 = aio_8 - calfac
       aio_8 = eval_analog(aio_8)
-      print("Analog In {}: {}vDC".format(aio, aio_8))
+      print("Analog In {}: {}vDC adcRef".format(aio, aio_8))
 
   query = """INSERT INTO `analogInput` (`id`, `unix_time`, `analog0`, `analog1`, `analog2`, `analog3`, `analog4`, `analog5`, `analog6`, `analog7`, `analog8`) VALUES (NULL, CURRENT_TIMESTAMP, '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}')"""
 
@@ -315,6 +399,10 @@ try:
     print("\033[91mDB: no tables, creating database \033[0m")
     createDB()
 
+#  CONFIG = rm_read_config()
+#  print("DEBUG Config: {}".format(CONFIG))
+  print(rm_read_config())
+
   while True:
     if GPIO.event_detected(22):
       triggerINT()
@@ -332,6 +420,7 @@ try:
     blink_red()
     clr_all()
     if DEBUG:
+      get_calfac(100)
       print("\033[91mDEBUG sleep 10s\033[0m")
       sleep(10)
     else:
