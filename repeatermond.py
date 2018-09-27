@@ -8,6 +8,7 @@ import mysql.connector as mariadb
 import RPi.GPIO as GPIO
 import ConfigParser
 import io
+import sys
 
 from time import sleep
 from os import system
@@ -17,7 +18,6 @@ from os import system
 
 __author__     = 'Wyatt Miler, KJ4CTD'
 __copyright__  = 'Copyright (c) 2018 Wyatt Miler, KJ4CTD'
-__license__    = 'GNU GPLv3'
 __maintainer__ = 'Wyatt Miler, KJ4CTD'
 __email__      = 'kj4ctd@wmiler.org'
 
@@ -58,6 +58,7 @@ def rm_write_config():
     config.add_section('mysqld')
     config.set('mysqld', 'USER', 'pi')
     config.set('mysqld', 'PASSWD', 'wmiler')
+    config.set('mysqld', 'DBHOST', 'localhost'),
     config.set('mysqld', 'DBNAME', 'w4nykMonitor')
 
     config.add_section('monitor')
@@ -87,6 +88,7 @@ def rm_read_config():
         CONFIG['MYSQLD'].update({
           'USER': config.get(section, 'USER'),
           'PASSWD': config.get(section, 'PASSWD'),
+          'DBHOST': config.get(section, 'DBHOST'),
           'DBNAME': config.get(section, 'DBNAME')
         })
       elif section == 'MONITOR':
@@ -101,8 +103,13 @@ def rm_read_config():
   return CONFIG
 
 def createDB():
-  query = """mysql -u pi -pwmiler --host localhost < repeatermond.sql"""
+  if DEBUG:
+    query2 = """mysql -u {} -p{} --host {} < repeatermond.sql"""
+  else:
+    query = """mysql -u pi -pwmiler --host localhost < repeatermond.sql"""
   try:
+#    system(query.format(USER, PASSWD, DBHOST))
+    print("\033[91m query2: {} \033[0m".format(query2))
     system(query)
   except:
     print("\033[91m Error creating db \033[0m".format(err))
@@ -128,8 +135,14 @@ def triggerINT():
 
 # TODO Add get_calfac to calc_vswr
 def calc_vswr(ant,f,r):
+  calfac = get_calfac(100)
+  revcalfac = get_calfac(100)
+
   f=abs(DAQC.getADC(0,f))
   r=abs(DAQC.getADC(0,r))
+# TODO For normalizing elements when true test rig is ready
+#  f=f-calfac
+#  r=r-revcalfac
   x=abs(1 + math.sqrt(safe_div(r,f)))
   y=abs(1 - math.sqrt(safe_div(r,f)))
   swr=round(safe_div(x,y), 3)
