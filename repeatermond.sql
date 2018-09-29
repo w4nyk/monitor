@@ -58,6 +58,7 @@ CREATE TABLE `calibration` (
   `mWtwentyfive` float(10,3) NOT NULL,
   `mWfifty` float(10,3) NOT NULL,
   `mWoneHundred` float(10,3) NOT NULL,
+  `oneW` float(10,3) NOT NULL,
   `fiveW` float(10,3) NOT NULL,
   `tenW` float(10,3) NOT NULL,
   `fifteenW` float(10,3) NOT NULL,
