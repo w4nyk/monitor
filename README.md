@@ -26,3 +26,10 @@ After you have completed the above step, you will need to execute this command f
 ``` bash
 sudo /etc/init.d/rpimonitor restart
 ```
+
+## repeatermond
+The main files for repeatermond are:
+* repeatermond.py Primary program
+* repeatermond.cfg Configuration file
+* repeatermond.sql SQL file to initialize the MySQL/Maria database
+* rm_\*.py files are various support files for the main program
