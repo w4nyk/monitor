@@ -48,7 +48,7 @@ DIGIN = [int(str_val) for str_val in config['MONITOR']['DIGIN'].split(',')]
 ELEMENTS = [int(str_val) for str_val in config['MONITOR']['ELEMENTS'].split(',')]
 DEBUG = config['MONITOR']['DEBUG']
 
-mariadb_connection = mariadb.connect(user=USER, password=PASSWD, database=DBNAME)
+mariadb_connection = mariadb.connect(user=USER, password=PASSWD, host=DBHOST, database=DBNAME)
 cursor = mariadb_connection.cursor()
 dict_cursor = mariadb_connection.cursor(dictionary=True)
 
