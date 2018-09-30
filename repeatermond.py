@@ -48,31 +48,55 @@ DIGIN = [int(str_val) for str_val in config['MONITOR']['DIGIN'].split(',')]
 ELEMENTS = [int(str_val) for str_val in config['MONITOR']['ELEMENTS'].split(',')]
 DEBUG = config['MONITOR']['DEBUG']
 
-mariadb_connection = mariadb.connect(user=USER, password=PASSWD, host=DBHOST, database=DBNAME)
-cursor = mariadb_connection.cursor()
-dict_cursor = mariadb_connection.cursor(dictionary=True)
+# Make the initial database connection
+try:
+  mariadb_connection = mariadb.connect(user=USER, password=PASSWD, host=DBHOST, database=DBNAME)
+  cursor = mariadb_connection.cursor()
+  dict_cursor = mariadb_connection.cursor(dictionary=True)
+except mariadb.Error as err:
+  print("\033[91mDB: Error inital connection\033[0m".format(err))
 
 def createDB():
+  """Initializes the DB with default tables.
+
+  Uses config file keywords under the MYSQLD heading
+  """
   query = """mysql -u {} -p{} -h {} -D {} < repeatermond.sql"""
   try:
     system(query.format(USER, PASSWD, DBHOST, DBNAME))
   except:
-    print("\033[91m Error creating db \033[0m".format(err))
+    print("\033[91mError creating db \033[0m".format(err))
 
 # TODO This needs to fail gracefully if no calibration data available
+# Get_calfac(I/O port) or should this really be element size??
 def get_calfac(element_size):
+  """Gets the calibration factors from the database for the given element size.
+  """
   query = """SELECT * FROM  `calibration` WHERE `elementSize` = {} AND `fiveW` IS NOT NULL"""
+
+# Grab the element from db and grab the cal data
+#  for ele in ELEMENTS:
+#    if ele == 100:
 
   try:
     dict_cursor.execute(query.format(element_size))
+  except mariadb.Error as err:
+    print("\033[91mDB: execute error calfac {}\033[0m".format(err))
+
+  try:
     row = dict_cursor.fetchone()
   except mariadb.Error as err:
-    print("\033[91m Error calfac db \033[0m".format(err))
+    print("\033[91mDB: fetchone error calfac {}\033[0m".format(err))
 
 # TODO return the full calibration factors as needed or wanted, for now, factor at 5W is good enough
-  return row['fiveW']
+  if row == None:
+    print("\033[91mPlease run the calibration program 'rm_calibrate'\033[0m")
+  else:
+    return row['fiveW']
 
 def triggerINT():
+  """Callback rountine when a Digital Input has been triggered.
+  """
   DAQC.setDOUTbit(0,0)
   DAQC.getINTflags(0)
   print("\033[94m _-*xmit triggered!*-_ \033[0m")
@@ -80,14 +104,22 @@ def triggerINT():
   DAQC.clrDOUTbit(0,0)
 
 # TODO Add get_calfac to calc_vswr
+# calc_vswr(antenna, forward i/o port, reverse i/o port)
 def calc_vswr(ant,f,r):
-  calfac = get_calfac(100)
-  revcalfac = get_calfac(100)
+  """Calculates the Voltage Standing Wave Ratio (VSWR) for a given antenna.
+
+  Arguments:
+  ant -- The antenna height (aquired from the config file)
+  f -- Analog I/O pin on the DAQCplate board to read
+  r -- Analog I/O pin on the DAQCplate board to read
+  """
+  fwdcalfac = get_calfac(f)
+  revcalfac = get_calfac(r)
 
   f=abs(DAQC.getADC(0,f))
   r=abs(DAQC.getADC(0,r))
 # TODO For normalizing elements when true test rig is ready
-#  f=f-calfac
+#  f=f-fwdcalfac
 #  r=r-revcalfac
   x=abs(1 + math.sqrt(rm_utils.safe_div(r,f)))
   y=abs(1 - math.sqrt(rm_utils.safe_div(r,f)))
@@ -99,6 +131,8 @@ def calc_vswr(ant,f,r):
   return swr
 
 def vswr():
+  """Fancy looping switch to calculate vswr and preps a SQL statement for db insertion."""
+
   for ant in ANTS:
     if ant == 450:
       swr_450=calc_vswr(ant,0,1)
@@ -116,9 +150,11 @@ def vswr():
     mariadb_connection.commit()
   except mariadb.Error as err:
     mariadb_connection.rollback()
-    print("\033[91m Error swr db \033[0m".format(err))
+    print("\033[91m Error swr db {}\033[0m".format(err))
 
 def db_din():
+  """Scans the Digital Input pins for status."""
+
   for din in DIGIN:
     if din == 0:
       din_0 = DAQC.getDINbit(0,0)
@@ -163,6 +199,8 @@ def db_din():
     print("\033[91m Error digInput db \033[0m {}".format(err))
 
 def print_din(c):
+  """Depreciated to be removed."""
+
   val = DAQC.getDINbit(0,c)
 
 #TODO kj4ctd Base this on c and only update that column in the table. Python is messy, switch would've been better
@@ -198,6 +236,8 @@ def print_din(c):
 
 
 def print_vdc():
+  """Depreciated to be removed."""
+
   val=DAQC.getADC(0,8)
   print("Power (adref): {}vDC".format(val))
 
@@ -211,6 +251,7 @@ def print_vdc():
     print("\033[91m Error vdc db \033[0m".format(err))
 
 def db_analog():
+  """Reads the Analog I/O pins, adjusts for the calibration factor and preps a SQL statement for insertion into the database. """
 #  calfac = get_calfac(100)
   calfac = 0
   for aio in ANALOGIO:
@@ -272,6 +313,8 @@ def db_analog():
 
 # TODO kj4ctd Pull calibrartion factor (calfac) from database instead of directly
 def print_chan(c, calfac):
+  """Depreciated to be removed."""
+
   val = DAQC.getADC(0,c)
   val = val - calfac
   if val < 0:
@@ -306,6 +349,7 @@ def print_chan(c, calfac):
 # TODO kj4ctd Main loop, cleanup and make it production quality
 # Do a loop every 10 mins or so
 try:
+  """Main program loop."""
   cursor.execute("SHOW TABLES LIKE 'swr'")
   result = cursor.fetchone()
   if result:
