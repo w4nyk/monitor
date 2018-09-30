@@ -15,6 +15,7 @@ import RPi.GPIO as GPIO
 import ConfigParser
 import io
 import sys
+import logging
 
 from time import sleep
 from os import system
@@ -48,12 +49,19 @@ DIGIN = [int(str_val) for str_val in config['MONITOR']['DIGIN'].split(',')]
 ELEMENTS = [int(str_val) for str_val in config['MONITOR']['ELEMENTS'].split(',')]
 DEBUG = config['MONITOR']['DEBUG']
 
+# Set up the logger
+logging.basicConfig(filename='repeatermond.log', format='%(asctime)s %(levelname)s %(message)s', level=logging.DEBUG)
+logger = logging.getLogger()
+
+
 # Make the initial database connection
 try:
+  logger.debug("DB: Initial connection")
   mariadb_connection = mariadb.connect(user=USER, password=PASSWD, host=DBHOST, database=DBNAME)
   cursor = mariadb_connection.cursor()
   dict_cursor = mariadb_connection.cursor(dictionary=True)
 except mariadb.Error as err:
+  logger.error("DB: Initial connection FAILED: {}".format(err))
   print("\033[91mDB: Error inital connection\033[0m".format(err))
 
 def createDB():
@@ -63,8 +71,10 @@ def createDB():
   """
   query = """mysql -u {} -p{} -h {} -D {} < repeatermond.sql"""
   try:
+    logger.debug("DB: createDB")
     system(query.format(USER, PASSWD, DBHOST, DBNAME))
   except:
+    logger.error("DB: createDB FAILED: {}".format(err))
     print("\033[91mError creating db \033[0m".format(err))
 
 # TODO This needs to fail gracefully if no calibration data available
@@ -72,6 +82,7 @@ def createDB():
 def get_calfac(element_size):
   """Gets the calibration factors from the database for the given element size.
   """
+  logger.debug("get_calfac")
   query = """SELECT * FROM  `calibration` WHERE `elementSize` = {} AND `fiveW` IS NOT NULL"""
 
 # Grab the element from db and grab the cal data
@@ -79,17 +90,22 @@ def get_calfac(element_size):
 #    if ele == 100:
 
   try:
+    logger.debug("get_calfac: {}".format(element_size))
     dict_cursor.execute(query.format(element_size))
   except mariadb.Error as err:
+    logger.error("DB: get_calfac FAILED: {}".format(err))
     print("\033[91mDB: execute error calfac {}\033[0m".format(err))
 
   try:
+    logger.debug("get_calfac: row")
     row = dict_cursor.fetchone()
   except mariadb.Error as err:
+    logger.error("DB: get_calfac FAILED: {}".format(err))
     print("\033[91mDB: fetchone error calfac {}\033[0m".format(err))
 
 # TODO return the full calibration factors as needed or wanted, for now, factor at 5W is good enough
   if row == None:
+    logger.debug("DB: get_calfac FAILED: row == None")
     print("\033[91mPlease run the calibration program 'rm_calibrate'\033[0m")
   else:
     return row['fiveW']
@@ -97,6 +113,8 @@ def get_calfac(element_size):
 def triggerINT():
   """Callback rountine when a Digital Input has been triggered.
   """
+  logger.debug("triggerINT")
+
   DAQC.setDOUTbit(0,0)
   DAQC.getINTflags(0)
   print("\033[94m _-*xmit triggered!*-_ \033[0m")
@@ -113,8 +131,9 @@ def calc_vswr(ant,f,r):
   f -- Analog I/O pin on the DAQCplate board to read
   r -- Analog I/O pin on the DAQCplate board to read
   """
-  fwdcalfac = get_calfac(f)
-  revcalfac = get_calfac(r)
+
+#  fwdcalfac = get_calfac(f)
+#  revcalfac = get_calfac(r)
 
   f=abs(DAQC.getADC(0,f))
   r=abs(DAQC.getADC(0,r))
@@ -125,6 +144,7 @@ def calc_vswr(ant,f,r):
   y=abs(1 - math.sqrt(rm_utils.safe_div(r,f)))
   swr=round(rm_utils.safe_div(x,y), 3)
   if swr > 3.0:
+    logger.warning("calc_vswr: Ant Height: {} SWR:  \033[91m {} \033[0m".format(ant,swr))
     print("Ant Height: {} SWR:  \033[91m {} \033[0m".format(ant,swr))
   else:
     print("Ant Height: {} SWR:  \033[92m {} \033[0m".format(ant,swr))
@@ -149,6 +169,7 @@ def vswr():
     cursor.execute(query.format(swr_450, swr_300, swr_200, swr_100))
     mariadb_connection.commit()
   except mariadb.Error as err:
+    logger.error("DB: vswr FAILED: {}".format(err))
     mariadb_connection.rollback()
     print("\033[91m Error swr db {}\033[0m".format(err))
 
@@ -195,60 +216,9 @@ def db_din():
     cursor.execute(query.format(din_0, din_1, din_2, din_3, din_4, din_5, din_6, din_7))
     mariadb_connection.commit()
   except mariadb.Error as err:
+    logger.error("DB: db_din FAILED: {}".format(err))
     mariadb_connection.rollback()
     print("\033[91m Error digInput db \033[0m {}".format(err))
-
-def print_din(c):
-  """Depreciated to be removed."""
-
-  val = DAQC.getDINbit(0,c)
-
-#TODO kj4ctd Base this on c and only update that column in the table. Python is messy, switch would've been better
-  if c == 0:
-    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '{}', '1', '1', '1', '1', '1', '1', '1')"""
-  elif c == 1:
-    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '1', '{}', '1', '1', '1', '1', '1', '1')"""
-  elif c == 2:
-    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '1', '1', '{}', '1', '1', '1', '1', '1')"""
-  elif c == 3:
-    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '1', '1', '1', '{}', '1', '1', '1', '1')"""
-  elif c == 4:
-    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '1', '1', '1', '1', '{}', '1', '1', '1')"""
-  elif c == 5:
-    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '1', '1', '1', '1', '1', '{}', '1', '1')"""
-  elif c == 6:
-    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '1', '1', '1', '1', '1', '1', '{}', '1')"""
-  else:
-    query = """INSERT INTO `digInput` (`id`, `unix_time`, `dig0`, `dig1`, `dig2`, `dig3`, `dig4`, `dig5`, `dig6`, `dig7`) VALUES (NULL, CURRENT_TIMESTAMP, '1', '1', '1', '1', '1', '1', '1', '{}')"""
-
-  try:
-    cursor.execute(query.format(val))
-    mariadb_connection.commit()
-  except mariadb.Error as err:
-    mariadb_connection.rollback()
-    print("\033[91m Error digInput db \033[0m {}".format(err))
-
-  if val == 0:
-    val = "\033[93m Closed \033[0m"
-  else:
-    val = "\033[92m Open \033[0m"
-  print("Din {}: {}".format(c,val))
-
-
-def print_vdc():
-  """Depreciated to be removed."""
-
-  val=DAQC.getADC(0,8)
-  print("Power (adref): {}vDC".format(val))
-
-#TODO kj4ctd Only update that column in the table, Need to use UPDATE?
-  query = """INSERT INTO `analogInput` (`id`, `unix_time`, `analog0`, `analog1`, `analog2`, `analog3`, `analog4`, `analog5`, `analog6`, `analog7`, `analog8`) VALUES (NULL, CURRENT_TIMESTAMP, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, {})"""
-  try:
-    cursor.execute(query.format(val))
-    mariadb_connection.commit()
-  except mariadb.Error as err:
-    mariadb_connection.rollback()
-    print("\033[91m Error vdc db \033[0m".format(err))
 
 def db_analog():
   """Reads the Analog I/O pins, adjusts for the calibration factor and preps a SQL statement for insertion into the database. """
@@ -256,7 +226,6 @@ def db_analog():
   calfac = 0
   for aio in ANALOGIO:
     if aio == 0:
-      print("db_analog aio_0: {}".format(aio))
       aio_0 = DAQC.getADC(0,0)
       aio_0 = aio_0 - calfac
       aio_0 = rm_utils.eval_analog(aio_0)
@@ -308,79 +277,51 @@ def db_analog():
     cursor.execute(query.format(aio_0, aio_1, aio_2, aio_3, aio_4, aio_5, aio_6, aio_7, aio_8))
     mariadb_connection.commit()
   except mariadb.Error as err:
-    mariadb_connection.rollback()
-    print("\033[91m Error analogInput db \033[0m".format(err))
-
-# TODO kj4ctd Pull calibrartion factor (calfac) from database instead of directly
-def print_chan(c, calfac):
-  """Depreciated to be removed."""
-
-  val = DAQC.getADC(0,c)
-  val = val - calfac
-  if val < 0:
-    val = 0.0
-  print("Analog In {}: {}vDC".format(c, val))
-
-#TODO kj4ctd Base this on c and only update that column in the table
-  if c == 0:
-    query = """INSERT INTO `analogInput` (`id`, `unix_time`, `analog0`, `analog1`, `analog2`, `analog3`, `analog4`, `analog5`, `analog6`, `analog7`, `analog8`) VALUES (NULL, CURRENT_TIMESTAMP, '{}', '0.0', '0.0', '0.0', '0.0', '0.0', '0.0', '0.0', '0.0')"""
-  elif c == 1:
-    query = """INSERT INTO `analogInput` (`id`, `unix_time`, `analog0`, `analog1`, `analog2`, `analog3`, `analog4`, `analog5`, `analog6`, `analog7`, `analog8`) VALUES (NULL, CURRENT_TIMESTAMP, '0.0', '{}', '0.0', '0.0', '0.0', '0.0', '0.0', '0.0', '0.0')"""
-  elif c == 2:
-    query = """INSERT INTO `analogInput` (`id`, `unix_time`, `analog0`, `analog1`, `analog2`, `analog3`, `analog4`, `analog5`, `analog6`, `analog7`, `analog8`) VALUES (NULL, CURRENT_TIMESTAMP, '0.0', '0.0', '{}', '0.0', '0.0', '0.0', '0.0', '0.0', '0.0')"""
-  elif c == 3:
-    query = """INSERT INTO `analogInput` (`id`, `unix_time`, `analog0`, `analog1`, `analog2`, `analog3`, `analog4`, `analog5`, `analog6`, `analog7`, `analog8`) VALUES (NULL, CURRENT_TIMESTAMP, '0.0', '0.0', '0.0', '{}', '0.0', '0.0', '0.0', '0.0', '0.0')"""
-  elif c == 4:
-    query = """INSERT INTO `analogInput` (`id`, `unix_time`, `analog0`, `analog1`, `analog2`, `analog3`, `analog4`, `analog5`, `analog6`, `analog7`, `analog8`) VALUES (NULL, CURRENT_TIMESTAMP, '0.0', '0.0', '0.0', '0.0', '{}', '0.0', '0.0', '0.0', '0.0')"""
-  elif c == 5:
-    query = """INSERT INTO `analogInput` (`id`, `unix_time`, `analog0`, `analog1`, `analog2`, `analog3`, `analog4`, `analog5`, `analog6`, `analog7`, `analog8`) VALUES (NULL, CURRENT_TIMESTAMP, '0.0', '0.0', '0.0', '0.0', '0.0', '{}', '0.0', '0.0', '0.0')"""
-  elif c == 6:
-    query = """INSERT INTO `analogInput` (`id`, `unix_time`, `analog0`, `analog1`, `analog2`, `analog3`, `analog4`, `analog5`, `analog6`, `analog7`, `analog8`) VALUES (NULL, CURRENT_TIMESTAMP, '0.0', '0.0', '0.0', '0.0', '0.0', '0.0', '{}', '0.0', '0.0')"""
-  else:
-    query = """INSERT INTO `analogInput` (`id`, `unix_time`, `analog0`, `analog1`, `analog2`, `analog3`, `analog4`, `analog5`, `analog6`, `analog7`, `analog8`) VALUES (NULL, CURRENT_TIMESTAMP, '0.0', '0.0', '0.0', '0.0', '0.0', '0.0', '0.0', '{}', '0.0')"""
-
-  try:
-    cursor.execute(query.format(val))
-    mariadb_connection.commit()
-  except mariadb.Error as err:
+    logger.error("DB: db_analog FAILED: {}".format(err))
     mariadb_connection.rollback()
     print("\033[91m Error analogInput db \033[0m".format(err))
 
 # TODO kj4ctd Main loop, cleanup and make it production quality
 # Do a loop every 10 mins or so
-try:
-  """Main program loop."""
-  cursor.execute("SHOW TABLES LIKE 'swr'")
-  result = cursor.fetchone()
-  if result:
-    print("\033[92mDB: database and tables exist \033[0m")
-  else:
-    print("\033[91mDB: no tables, creating database \033[0m")
-    createDB()
+def main():
+  try:
+    """Main program loop."""
+    logger.debug("Main loop start")
 
-  while True:
-    if GPIO.event_detected(22):
-      triggerINT()
-    rm_utils.clr_all()
-    print(time.ctime())
-    # Two red flashes denotes start of cycle
-    rm_utils.blink_red()
-    rm_utils.blink_red()
-    print("INT flags: {}".format(DAQC.getINTflags(0)))
-    db_analog()
-    db_din()
-
-    # Two red flashes denotes end of cycle
-    rm_utils.blink_red()
-    rm_utils.blink_red()
-    rm_utils.clr_all()
-    if DEBUG:
-      print("\033[91mDEBUG sleep 10s\033[0m")
-      sleep(10)
+    cursor.execute("SHOW TABLES LIKE 'swr'")
+    result = cursor.fetchone()
+    if result:
+      print("\033[92mDB: database and tables exist \033[0m")
     else:
-# sleep for 30 minutes
-      sleep(900)
-except KeyboardInterrupt:
-  cursor.close()
-  mariadb_connection.close()
-  GPIO.cleanup()
+      print("\033[91mDB: no tables, creating database \033[0m")
+      createDB()
+
+    while True:
+      if GPIO.event_detected(22):
+        triggerINT()
+      rm_utils.clr_all()
+      print(time.ctime())
+      # Two red flashes denotes start of cycle
+      rm_utils.blink_red()
+      rm_utils.blink_red()
+      print("INT flags: {}".format(DAQC.getINTflags(0)))
+      db_analog()
+      db_din()
+
+      # Two red flashes denotes end of cycle
+      rm_utils.blink_red()
+      rm_utils.blink_red()
+      rm_utils.clr_all()
+      if DEBUG:
+        print("\033[91mDEBUG sleep 10s\033[0m")
+        sleep(10)
+      else:
+  # sleep for 30 minutes
+        sleep(900)
+  except KeyboardInterrupt:
+    cursor.close()
+    mariadb_connection.close()
+    GPIO.cleanup()
+
+if __name__ == '__main__':
+  main()
