@@ -40,8 +40,23 @@ CREATE TABLE `analogInput` (
   `analog5` decimal(10,3) DEFAULT NULL COMMENT '200ft reverse',
   `analog6` decimal(10,3) DEFAULT NULL COMMENT '100ft forward',
   `analog7` decimal(10,3) DEFAULT NULL COMMENT '100ft reverse',
-  `analog8` decimal(10,3) DEFAULT NULL COMMENT 'adref'
+  `analog8` decimal(10,3) DEFAULT NULL COMMENT 'adcRef'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Analog Input voltages';
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `calibration`
+--
+
+DROP TABLE IF EXISTS `adc_calibration`;
+CREATE TABLE `adc_calibration` (
+  `id` int(11) NOT NULL,
+  `unix_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `aio` int(11) NOT NULL COMMENT 'Analog I/O pin 0-7',
+  `zeroVoltOffset` decimal(10,3) NOT NULL,
+  `vrefVoltOffset` decimal(10,3) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Holds voltage offsets for ADC';
 
 -- --------------------------------------------------------
 
@@ -128,6 +143,12 @@ ALTER TABLE `analogInput`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `adc_calibration`
+--
+ALTER TABLE `adc_calibration`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indexes for table `calibration`
 --
 ALTER TABLE `calibration`
@@ -154,6 +175,11 @@ ALTER TABLE `swr`
 -- AUTO_INCREMENT for table `analogInput`
 --
 ALTER TABLE `analogInput`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+--
+-- AUTO_INCREMENT for table `adc_calibration`
+--
+ALTER TABLE `adc_calibration`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 --
 -- AUTO_INCREMENT for table `calibration`
