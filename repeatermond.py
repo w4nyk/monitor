@@ -146,6 +146,7 @@ def calc_vswr(ant,f,r):
 # TODO For normalizing elements when true test rig is ready
 #  f=f-fwdcalfac
 #  r=r-revcalfac
+# Need to divide voltage by 50 ohm to get current, multiply current times voltage to get watts
   x=abs(1 + math.sqrt(rm_utils.safe_div(r,f)))
   y=abs(1 - math.sqrt(rm_utils.safe_div(r,f)))
   swr=round(rm_utils.safe_div(x,y), 3)
